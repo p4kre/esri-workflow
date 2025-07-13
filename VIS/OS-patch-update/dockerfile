@@ -1,0 +1,12 @@
+# ── build stage ───────────────────────────────────────────────
+FROM alpine:3.19 AS builder
+RUN apk add --no-cache g++ cmake ninja git
+WORKDIR /src
+COPY . .
+RUN cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -G Ninja && \
+    cmake --build build --target render_srv
+
+# ── tiny runtime stage ────────────────────────────────────────
+FROM scratch
+COPY --from=builder /src/build/render_srv /render_srv
+ENTRYPOINT ["/render_srv"]
