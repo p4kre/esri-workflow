@@ -1,0 +1,50 @@
+# charts/render/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "geo.renderFullname" . }}
+spec:
+  replicas: 2          # start with two pods
+  selector:
+    matchLabels: { app: render }
+  template:
+    metadata: { labels: { app: render } }
+    spec:
+      containers:
+      - name: render
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        resources:
+          limits:   { cpu: "2", memory: "2Gi" }
+          requests: { cpu: "500m", memory: "1Gi" }
+        livenessProbe:  { httpGet: { path: /health, port: 8080 }, initialDelaySeconds: 10 }
+        readinessProbe: { httpGet: { path: /ready,  port: 8080 }, periodSeconds: 5 }
+
+---
+# charts/render/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: render-hpa }
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "geo.renderFullname" . }}
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 65    # scale out when CPU > 65 %
+
+---
+# charts/render/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: render-pdb }
+spec:
+  minAvailable: 2   # at least two pods must stay up during node drains
+  selector:
+    matchLabels: { app: render }
