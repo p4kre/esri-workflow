@@ -1,0 +1,9 @@
+EXTENSION  = amie_rtree
+MODULE_big = amie_rtree
+OBJS       = amie_rtree.o
+PG_CONFIG ?= pg_config
+PGXS       := $(shell $(PG_CONFIG) --pgxs)
+include $(PGXS)
+
+CXXFLAGS += -march=native -O3 -std=c++17 -mpopcnt -mavx2 \
+            -D__cpp_lib_hardware_interference_size
