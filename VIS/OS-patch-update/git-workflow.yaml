@@ -1,0 +1,31 @@
+name: CI/CD
+
+on:
+  push:
+    tags: [ 'v*.*.*' ]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build + push with Kaniko
+        uses: aevea/action-kaniko@v1
+        with:
+          registry: ghcr.io/VIS
+          image: render-svc
+          tag: ${{ github.ref_name }}
+
+      - name: Configure kubeconfig  # (OIDC → EKS IRSA or AWS creds)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<acct>:role/gha-eks-deployer
+          aws-region: us-east-1
+
+      - name: Deploy via Helm
+        run: |
+          helm upgrade --install render charts/render \
+               --set image.tag=${{ github.ref_name }} \
+               --namespace geo --create-namespace
